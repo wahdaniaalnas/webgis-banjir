@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebGIS Banjir Indonesia – Wahda Alnas</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#04080f;--bg2:#080f1a;--bg3:#0d1825;--bg4:#111f30;--bg5:#172840;
+  --border:rgba(56,140,255,0.07);--border2:rgba(56,140,255,0.18);
+  --text:#cfe2f5;--text2:#5f84a8;--text3:#243650;
+  --accent:#2196f3;--accent2:#00e5ff;
+  --danger:#f44336;--warn:#ff9800;--green:#4caf50;
+  --font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  --sidebar:300px;--topbar:52px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font);background:var(--bg);color:var(--text);display:flex;flex-direction:column}
+
+/* TOPBAR */
+#topbar{height:var(--topbar);background:var(--bg2);border-bottom:1px solid var(--border2);display:flex;align-items:center;flex-shrink:0;z-index:900}
+.tb-brand{display:flex;align-items:center;gap:10px;padding:0 16px;border-right:1px solid var(--border);height:100%;min-width:210px;flex-shrink:0}
+.tb-logo{width:32px;height:32px;background:linear-gradient(135deg,#1565c0,#00acc1);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 0 14px rgba(0,172,193,.35);flex-shrink:0}
+.tb-title strong{font-size:12px;font-weight:700;display:block;color:var(--text)}
+.tb-title small{font-size:9px;color:var(--text2);letter-spacing:.4px;text-transform:uppercase}
+#tb-search-wrap{flex:1;padding:0 14px;border-right:1px solid var(--border);position:relative}
+.search-icon-wrap{position:relative;max-width:320px}
+#tb-search{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 12px 6px 30px;border-radius:8px;font-size:12px;font-family:var(--font);outline:none;transition:border-color .15s}
+#tb-search:focus{border-color:var(--accent)}
+#tb-search::placeholder{color:var(--text3)}
+.si{position:absolute;left:9px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none}
+#search-results{position:fixed;top:56px;left:230px;z-index:2000;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;min-width:280px;max-height:220px;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.7);display:none}
+#search-results.open{display:block}
+.sr-item{padding:8px 12px;font-size:11.5px;cursor:pointer;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px;transition:background .1s}
+.sr-item:hover{background:var(--bg3)}
+.sr-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.sr-name{font-weight:600;color:var(--text)}
+.sr-sub{font-size:9.5px;color:var(--text2);margin-top:1px}
+.tb-stats{display:flex;align-items:center;padding:0 10px;gap:0;border-right:1px solid var(--border)}
+.tb-stat{display:flex;flex-direction:column;align-items:center;padding:0 10px;min-width:55px}
+.tb-stat .sl{font-size:8.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:1px}
+.tb-stat .sv{font-size:14px;font-weight:700;font-family:var(--mono)}
+.sv.blue{color:var(--accent2)}.sv.red{color:var(--danger)}.sv.grn{color:var(--green)}
+.tb-div{width:1px;height:26px;background:var(--border)}
+.db-badge{display:flex;align-items:center;gap:5px;padding:4px 9px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;font-size:9.5px;color:var(--text2);margin:0 7px;flex-shrink:0}
+.db-dot{width:6px;height:6px;border-radius:50%;background:var(--warn);box-shadow:0 0 5px var(--warn);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#btn-lapor{background:rgba(244,67,54,.1);border:1px solid rgba(244,67,54,.3);color:var(--danger);padding:5px 11px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--font);transition:all .15s;margin-right:6px;flex-shrink:0}
+#btn-lapor:hover{background:rgba(244,67,54,.2)}
+#btn-upload{margin-right:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02101e;border:none;padding:5px 13px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--font);flex-shrink:0;transition:all .15s;box-shadow:0 2px 10px rgba(33,150,243,.3)}
+#btn-upload:hover{box-shadow:0 4px 16px rgba(33,150,243,.45)}
+
+/* MAIN */
+#main{display:flex;flex:1;overflow:hidden}
+
+/* SIDEBAR */
+#sidebar{width:var(--sidebar);background:var(--bg2);border-right:1px solid var(--border2);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sb-tabs{display:flex;border-bottom:1px solid var(--border2);background:var(--bg);flex-shrink:0}
+.sb-tab{flex:1;padding:8px 2px;font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);background:transparent;border:none;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;font-family:var(--font)}
+.sb-tab.active{color:var(--accent2);border-bottom-color:var(--accent2);background:var(--bg2)}
+.sb-panel{display:none;flex:1;overflow:hidden;flex-direction:column}
+.sb-panel.active{display:flex}
+
+/* RINGKASAN */
+#panel-ringkasan{overflow-y:auto;padding:10px}
+#panel-ringkasan::-webkit-scrollbar{width:3px}
+#panel-ringkasan::-webkit-scrollbar-thumb{background:var(--bg5);border-radius:3px}
+.alert-banner{background:linear-gradient(135deg,rgba(244,67,54,.12),rgba(255,152,0,.08));border:1px solid rgba(244,67,54,.25);border-radius:9px;padding:9px 11px;margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.alert-icon{font-size:15px;flex-shrink:0}
+.alert-title{font-size:11px;font-weight:700;color:var(--danger)}
+.alert-sub{font-size:9.5px;color:var(--text2);margin-top:1px}
+.sec-lbl{font-size:8.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:1px;padding:6px 2px 4px}
+.scope-row{display:flex;gap:4px;margin-bottom:9px}
+.scope-btn{flex:1;padding:4px;font-size:9px;font-weight:700;text-transform:uppercase;border:1px solid var(--border2);border-radius:6px;cursor:pointer;background:var(--bg3);color:var(--text2);font-family:var(--font);transition:all .15s}
+.scope-btn.active{background:rgba(0,229,255,.1);border-color:var(--accent2);color:var(--accent2)}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:9px}
+.stat-card{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:8px 10px}
+.sc-lbl{font-size:8px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px}
+.sc-num{font-size:20px;font-weight:700;font-family:var(--mono);line-height:1;margin-bottom:2px}
+.sc-sub{font-size:8.5px;color:var(--text3)}
+.sc-num.cb{color:var(--accent2)}.sc-num.cr{color:var(--danger)}.sc-num.cg{color:var(--green)}.sc-num.cw{color:var(--warn);font-size:12px;padding-top:4px}
+.chart-block{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:9px 10px 7px;margin-bottom:9px}
+.chart-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+.chart-top span{font-size:9.5px;color:var(--text2);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.chart-val{font-size:10.5px;font-family:var(--mono);color:var(--accent2)}
+.bar-row{display:flex;align-items:flex-end;gap:2px;height:52px}
+.bw{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.bar{width:100%;border-radius:3px 3px 0 0;min-height:2px;background:var(--accent);opacity:.5;transition:opacity .15s}
+.bar:hover{opacity:.9}.bar.sel{opacity:1;background:var(--danger)}.bar.spike{background:linear-gradient(180deg,var(--danger),var(--warn));opacity:.75}
+.bar-yr{font-size:6.5px;color:var(--text3);font-family:var(--mono);writing-mode:vertical-lr;transform:rotate(180deg)}
+.tl-block{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:9px 10px;margin-bottom:9px}
+.tl-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.tl-lbl{font-size:9.5px;color:var(--text2);font-weight:600}
+.tl-yr{font-size:14px;font-weight:700;font-family:var(--mono);color:var(--accent2)}
+.tl-slider{width:100%;-webkit-appearance:none;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--accent) var(--pct,0%),var(--bg5) var(--pct,0%));outline:none;cursor:pointer;margin-bottom:4px}
+.tl-slider::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;border-radius:50%;background:var(--accent2);box-shadow:0 0 7px var(--accent2);cursor:pointer;border:2px solid var(--bg)}
+.tl-ticks{display:flex;justify-content:space-between;font-size:8px;color:var(--text3);font-family:var(--mono);margin-bottom:7px}
+.tl-modes{display:flex;gap:4px}
+.tl-mb{flex:1;padding:3px;font-size:8.5px;font-weight:700;text-transform:uppercase;border:1px solid var(--border2);border-radius:5px;cursor:pointer;background:var(--bg4);color:var(--text2);font-family:var(--font);transition:all .15s}
+.tl-mb.active{background:rgba(33,150,243,.1);border-color:var(--accent);color:var(--accent)}
+
+/* LAYER PANEL */
+.sb-header{padding:9px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.sb-header h3{font-size:9.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px}
+.count-pill{font-size:9px;font-family:var(--mono);background:rgba(0,229,255,.1);color:var(--accent2);padding:2px 7px;border-radius:20px;border:1px solid rgba(0,229,255,.2)}
+#layer-list{flex:1;overflow-y:auto;padding:7px}
+#layer-list::-webkit-scrollbar{width:3px}
+#layer-list::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+.lcard{background:var(--bg3);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;overflow:hidden;transition:border-color .15s}
+.lcard.on{border-color:rgba(33,150,243,.2)}
+.lcard-head{display:flex;align-items:center;gap:7px;padding:8px 9px;cursor:pointer}
+.lcolor{width:8px;height:8px;border-radius:50%;flex-shrink:0;box-shadow:0 0 5px currentColor}
+.lname{font-size:11px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lbadge{font-size:8px;padding:1px 5px;border-radius:4px;background:var(--bg5);color:var(--text2);font-family:var(--mono);flex-shrink:0}
+.ltoggle{width:26px;height:14px;border-radius:7px;border:none;cursor:pointer;background:var(--bg5);position:relative;transition:background .2s;flex-shrink:0}
+.ltoggle.on{background:var(--accent)}
+.ltoggle::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;background:#fff;border-radius:50%;transition:transform .2s}
+.ltoggle.on::after{transform:translateX(12px)}
+.lcard-body{display:none;padding:0 9px 9px;border-top:1px solid var(--border)}
+.lcard.open .lcard-body{display:block}
+.info-row{display:flex;justify-content:space-between;padding:5px 0 4px;font-size:10px}
+.info-row span{color:var(--text2)}.info-row b{color:var(--text);font-family:var(--mono)}
+.attr-chips{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:7px}
+.chip{font-size:8px;font-family:var(--mono);padding:2px 5px;background:var(--bg5);color:var(--text2);border-radius:4px}
+.lcard-actions{display:flex;gap:4px}
+.lcard-actions button{flex:1;background:var(--bg4);border:1px solid var(--border);color:var(--text2);padding:4px;border-radius:5px;font-size:9px;font-family:var(--font);cursor:pointer;transition:all .15s;font-weight:600}
+.lcard-actions button:hover{color:var(--text);border-color:var(--border2)}
+.lcard-actions button.del:hover{border-color:var(--danger);color:var(--danger)}
+.lcard-actions button.zm:hover{border-color:var(--accent2);color:var(--accent2)}
+.reset-btn{width:calc(100% - 14px);margin:0 7px 7px;background:rgba(244,67,54,.08);border:1px solid rgba(244,67,54,.2);color:var(--danger);padding:6px;border-radius:7px;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .15s}
+.reset-btn:hover{background:rgba(244,67,54,.16)}
+.empty{text-align:center;padding:30px 14px;color:var(--text3)}
+.empty .ico{font-size:24px;margin-bottom:8px;opacity:.6}
+.empty p{font-size:11px;line-height:1.8;color:var(--text2)}
+
+/* LAPORAN PANEL */
+#panel-laporan{overflow:hidden}
+#laporan-list{flex:1;overflow-y:auto;padding:7px}
+#laporan-list::-webkit-scrollbar{width:3px}
+#laporan-list::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:3px}
+.laporan-item{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:9px 10px;cursor:pointer;transition:all .15s;margin-bottom:6px}
+.laporan-item:hover{border-color:var(--border2);background:var(--bg4)}
+.li-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.li-kode{font-size:9px;font-family:var(--mono);color:var(--accent)}
+.li-status{font-size:8px;padding:2px 7px;border-radius:10px;font-weight:700}
+.li-status.aktif{background:rgba(244,67,54,.15);color:var(--danger);border:1px solid rgba(244,67,54,.3)}
+.li-status.mereda{background:rgba(76,175,80,.1);color:var(--green);border:1px solid rgba(76,175,80,.25)}
+.li-lokasi{font-size:11px;font-weight:600;margin-bottom:2px}
+.li-waktu{font-size:9.5px;color:var(--text2)}
+.li-desc{font-size:10px;color:var(--text2);margin-top:5px;border-top:1px solid var(--border);padding-top:5px;line-height:1.5}
+.sev-bar{display:flex;gap:3px;margin-top:6px}
+.sev-b{flex:1;height:4px;border-radius:2px;background:var(--bg5)}
+.sev-b.f.rendah{background:var(--warn)}.sev-b.f.sedang{background:orange}.sev-b.f.tinggi{background:var(--danger)}.sev-b.f.kritis{background:#ff0033}
+
+/* KONTAK BNPB */
+.kontak-section{padding:7px}
+.kontak-card{background:var(--bg3);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;overflow:hidden}
+.kontak-head{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;cursor:pointer;transition:background .15s}
+.kontak-head:hover{background:var(--bg4)}
+.kontak-provinsi{font-size:10.5px;font-weight:700;color:var(--text);flex:1}
+.kontak-arrow{font-size:9px;color:var(--text2);transition:transform .2s}
+.kontak-card.open .kontak-arrow{transform:rotate(90deg)}
+.kontak-body{display:none;padding:0 10px 10px;border-top:1px solid var(--border)}
+.kontak-card.open .kontak-body{display:block}
+.kontak-row{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;font-size:9.5px;border-bottom:1px solid var(--border)}
+.kontak-row:last-child{border-bottom:none}
+.kontak-lbl{color:var(--text2);flex-shrink:0;margin-right:8px;font-size:9px;margin-top:1px}
+.kontak-val{color:var(--text);text-align:right;font-family:var(--mono);font-size:9px;line-height:1.5}
+.kontak-telp{color:var(--accent2);text-decoration:none;font-weight:600;font-size:9px}
+.kontak-telp:hover{text-decoration:underline}
+.kontak-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 7px;border-radius:5px;font-size:8.5px;font-weight:700;margin-bottom:5px;margin-top:3px}
+.kontak-badge.bpbd{background:rgba(33,150,243,.12);color:var(--accent);border:1px solid rgba(33,150,243,.25)}
+.kontak-badge.sar{background:rgba(255,152,0,.12);color:var(--warn);border:1px solid rgba(255,152,0,.25)}
+.kontak-search{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:7px;font-size:11px;font-family:var(--font);outline:none;margin-bottom:7px;transition:border-color .15s}
+.kontak-search:focus{border-color:var(--accent)}
+.kontak-search::placeholder{color:var(--text3)}
+.sos-box{background:linear-gradient(135deg,rgba(244,67,54,.12),rgba(255,0,51,.06));border:1px solid rgba(244,67,54,.3);border-radius:9px;padding:9px 11px;margin-bottom:8px;text-align:center}
+.sos-num{font-size:22px;font-weight:700;color:var(--danger);font-family:var(--mono);letter-spacing:2px;display:block;margin-bottom:2px}
+.sos-lbl{font-size:9px;color:var(--text2)}
+
+/* MAP */
+#map-wrap{flex:1;position:relative;overflow:hidden}
+#map{width:100%;height:100%}
+.leaflet-container{background:#030810}
+.leaflet-bar a{background:var(--bg2)!important;color:var(--text)!important;border-color:var(--border2)!important}
+.leaflet-bar a:hover{background:var(--bg3)!important}
+.leaflet-popup-content-wrapper{background:var(--bg2)!important;color:var(--text)!important;border:1px solid var(--border2)!important;border-radius:12px!important;box-shadow:0 16px 48px rgba(0,0,0,.7)!important;padding:0!important}
+.leaflet-popup-tip{background:var(--bg2)!important}
+.leaflet-popup-content{margin:0!important;width:auto!important}
+.pu{font-family:var(--font);min-width:220px;max-width:300px}
+.pu-head{padding:9px 13px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px}
+.pu-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pu-title{font-size:12px;font-weight:700;flex:1}
+.pu-badge{font-size:9px;font-family:var(--mono);font-weight:700;padding:2px 6px;border-radius:5px;background:rgba(244,67,54,.12);color:var(--danger);border:1px solid rgba(244,67,54,.25);white-space:nowrap}
+.pu-badge.zero{background:rgba(76,175,80,.1);color:var(--green);border-color:rgba(76,175,80,.25)}
+.pu-body{padding:8px 13px 11px;max-height:200px;overflow-y:auto}
+.pu-row{display:flex;justify-content:space-between;gap:10px;padding:2.5px 0;font-size:10px}
+.pu-row:not(:last-child){border-bottom:1px solid var(--border)}
+.pu-key{color:var(--text2);font-family:var(--mono)}.pu-val{color:var(--text);font-weight:500;text-align:right}
+.map-label{background:transparent!important;border:none!important;box-shadow:none!important}
+.map-label div{font-family:'Space Grotesk',sans-serif;font-size:8px;font-weight:700;color:#fff;white-space:nowrap;pointer-events:none;text-shadow:0 0 3px #000,0 1px 2px rgba(0,0,0,1);text-transform:uppercase}
+.labels-hidden .map-label{display:none!important}
+
+/* MAP OVERLAYS */
+#basemap-sw{position:absolute;top:70px;right:12px;z-index:800;background:var(--bg2);border:1px solid var(--border2);border-radius:9px;overflow:hidden;box-shadow:0 4px 18px rgba(0,0,0,.4)}
+.bm-btn{display:block;width:100%;padding:5px 10px;font-size:9.5px;color:var(--text2);background:transparent;border:none;cursor:pointer;font-family:var(--font);text-align:left;transition:all .12s;white-space:nowrap}
+.bm-btn:hover{background:var(--bg3);color:var(--text)}
+.bm-btn.active{color:var(--accent2);background:rgba(0,229,255,.06)}
+.bm-btn:not(:last-child){border-bottom:1px solid var(--border)}
+#legend{position:absolute;bottom:30px;right:12px;z-index:800;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:8px 10px;min-width:120px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#legend h4{font-size:8px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:9.5px;color:var(--text2);margin-bottom:3px}
+.leg-sym{width:20px;height:3px;border-radius:2px;flex-shrink:0}
+.leg-sym.poly{height:10px;border-radius:3px;opacity:.6}
+.leg-sym.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#sev-legend{position:absolute;bottom:30px;left:calc(var(--sidebar) + 12px);z-index:800;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:8px 10px;box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#sev-legend h4{font-size:8px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px}
+.sev-row{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--text2);margin-bottom:3px}
+.sev-sw{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+
+/* STATUS BAR */
+#statusbar{height:26px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:16px;font-size:9px;color:var(--text3);flex-shrink:0;font-family:var(--mono)}
+#statusbar b{color:var(--text2)}
+.sb-right{margin-left:auto;display:flex;align-items:center;gap:12px}
+.risk-ind{display:flex;align-items:center;gap:4px;font-size:8.5px;font-weight:700;color:var(--text2);background:var(--bg2);border:1px solid var(--border);border-radius:5px;padding:2px 7px}
+.risk-dot{width:5px;height:5px;border-radius:50%;background:var(--green)}
+
+/* MODALS */
+#overlay,#overlay-lapor{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+#overlay.open,#overlay-lapor.open{display:flex}
+#modal,#modal-lapor{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;width:470px;max-width:95vw;animation:fadeUp .2s ease;overflow:hidden;max-height:92vh}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.m-head{padding:14px 18px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.m-head h2{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:7px}
+.m-close{width:26px;height:26px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.m-close:hover{background:var(--bg4);color:var(--text)}
+.m-body{padding:14px 18px;overflow-y:auto;max-height:calc(92vh - 55px)}
+.fg{margin-bottom:10px}
+.fg label{display:block;font-size:9px;color:var(--text2);margin-bottom:3px;font-weight:700;text-transform:uppercase;letter-spacing:.5px}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--bg3);border:1px solid var(--border2);color:var(--text);padding:6px 10px;border-radius:7px;font-size:11.5px;font-family:var(--font);outline:none;transition:border-color .15s}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--accent)}
+.fg select option{background:var(--bg3)}
+#dropzone{border:2px dashed var(--border2);border-radius:9px;padding:12px;text-align:center;cursor:pointer;transition:all .18s;margin-bottom:9px}
+#dropzone:hover,#dropzone.over{border-color:var(--accent);background:rgba(33,150,243,.04)}
+#dropzone p{font-size:11px;color:var(--text2);line-height:1.6}
+#dropzone strong{color:var(--text)}
+#file-input{display:none}
+#fname{font-size:10px;color:var(--accent2);margin-top:4px;font-family:var(--mono)}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.sw.sel{border-color:#fff;transform:scale(1.3);box-shadow:0 0 8px currentColor}
+#prog-wrap{display:none;margin-bottom:9px}
+.prog-bar{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .3s;border-radius:2px}
+#prog-label{font-size:9.5px;color:var(--text2);margin-top:3px;font-family:var(--mono)}
+.btn-main{width:100%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#02101e;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .18s;letter-spacing:.2px}
+.btn-main:hover:not(:disabled){box-shadow:0 4px 14px rgba(33,150,243,.35)}
+.btn-main:disabled{opacity:.4;cursor:not-allowed}
+.btn-danger-full{width:100%;background:linear-gradient(135deg,var(--danger),#ef5350);color:#fff;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);transition:all .18s}
+.btn-danger-full:hover{box-shadow:0 4px 14px rgba(244,67,54,.35)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.note{font-size:9.5px;color:var(--text2);margin-top:3px}
+
+/* TOAST */
+#toast{position:fixed;bottom:34px;left:50%;transform:translateX(-50%) translateY(52px);background:var(--bg3);border:1px solid var(--border2);padding:7px 14px;border-radius:8px;font-size:11px;z-index:9999;transition:transform .25s;pointer-events:none;display:flex;align-items:center;gap:6px;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+#toast.show{transform:translateX(-50%) translateY(0)}
+.t-dot{width:5px;height:5px;border-radius:50%;background:var(--accent2);flex-shrink:0}
+#toast.err .t-dot{background:var(--danger)}
+#toast.err{border-color:rgba(244,67,54,.3)}
+
+/* LOADING */
+#loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .5s}
+#loading.hide{opacity:0;pointer-events:none}
+.load-rings{width:60px;height:60px;position:relative;margin-bottom:20px}
+.lr{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:var(--accent2);animation:spin 1s linear infinite}
+.lr:nth-child(2){inset:9px;border-top-color:var(--accent);animation-duration:1.4s;animation-direction:reverse}
+.lc{position:absolute;inset:20px;background:linear-gradient(135deg,#1565c0,#00acc1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-text{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:16px}
+.load-bar{width:160px;height:2px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.load-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;animation:lf 1.4s ease infinite}
+@keyframes lf{0%{width:0;margin-left:0}60%{width:55%}100%{width:0;margin-left:100%}}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="load-rings"><div class="lr"></div><div class="lr"></div><div class="lc">🌊</div></div>
+  <div class="load-text">Memuat WebGIS Banjir Indonesia…</div>
+  <div class="load-bar"><div class="load-fill"></div></div>
+</div>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="tb-brand">
+    <div class="tb-logo">🌊</div>
+    <div class="tb-title">
+      <strong>WebGIS Banjir Indonesia</strong>
+      <small>Wahda Alnas · UAS 2025</small>
+    </div>
+  </div>
+  <div id="tb-search-wrap">
+    <div class="search-icon-wrap">
+      <svg class="si" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="tb-search" placeholder="Cari wilayah, kecamatan, desa…" oninput="onSearch(this.value)" onblur="setTimeout(()=>closeSearch(),200)">
+    </div>
+  </div>
+  <div class="tb-stats">
+    <div class="tb-stat"><span class="sl">Layer</span><span class="sv blue" id="cnt-layer">0</span></div>
+    <div class="tb-div"></div>
+    <div class="tb-stat"><span class="sl">Fitur</span><span class="sv" id="cnt-fitur">0</span></div>
+    <div class="tb-div"></div>
+    <div class="tb-stat"><span class="sl">Laporan</span><span class="sv red" id="cnt-laporan">0</span></div>
+    <div class="tb-div"></div>
+    <div class="tb-stat"><span class="sl">Aktif</span><span class="sv grn" id="cnt-aktif">0</span></div>
+  </div>
+  <div class="db-badge"><div class="db-dot" id="db-dot"></div><span id="db-label">Menghubungkan…</span></div>
+  <button id="btn-lapor" onclick="openLapor()">🚨 Lapor Banjir</button>
+  <button id="btn-upload" onclick="openModal()">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Upload Layer
+  </button>
+</div>
+
+<div id="search-results"></div>
+
+<!-- MAIN -->
+<div id="main">
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+    <div class="sb-tabs">
+      <button class="sb-tab active" onclick="switchTab('ringkasan',this)">📊 Data</button>
+      <button class="sb-tab" onclick="switchTab('layer',this)">🗂 Layer</button>
+      <button class="sb-tab" onclick="switchTab('laporan',this)">🚨 Laporan</button>
+      <button class="sb-tab" onclick="switchTab('kontak',this)">📞 Kontak</button>
+    </div>
+
+    <!-- RINGKASAN -->
+    <div class="sb-panel active" id="panel-ringkasan">
+      <div class="alert-banner" id="alert-banner">
+        <div class="alert-icon">🌧️</div>
+        <div class="alert-content">
+          <div class="alert-title">Sistem Monitoring Aktif</div>
+          <div class="alert-sub" id="alert-sub">BMKG: Waspada hujan lebat beberapa wilayah</div>
+        </div>
+      </div>
+      <div class="sec-lbl">Tampilkan per</div>
+      <div class="scope-row">
+        <button class="scope-btn active" onclick="setScope('provinsi',this)">Provinsi</button>
+        <button class="scope-btn" onclick="setScope('kabupaten',this)">Kab/Kota</button>
+        <button class="scope-btn" onclick="setScope('kecamatan',this)">Kecamatan</button>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="sc-lbl">Total Kejadian</div><div class="sc-num cb" id="rs-total">–</div><div class="sc-sub">Semua tahun</div></div>
+        <div class="stat-card"><div class="sc-lbl">Wilayah Terdampak</div><div class="sc-num" id="rs-unit">–</div><div class="sc-sub" id="rs-scope-lbl">Provinsi</div></div>
+        <div class="stat-card"><div class="sc-lbl">Fitur di Peta</div><div class="sc-num cg" id="rs-peta">–</div><div class="sc-sub">Layer aktif</div></div>
+        <div class="stat-card"><div class="sc-lbl">Filter Aktif</div><div class="sc-num cw" id="rs-waktu">Semua</div><div class="sc-sub">Jendela waktu</div></div>
+      </div>
+      <div class="chart-block">
+        <div class="chart-top"><span>Kejadian / Tahun</span><span class="chart-val" id="cv-lbl">2010–2026</span></div>
+        <div class="bar-row" id="mc-bars"></div>
+      </div>
+      <div class="tl-block">
+        <div class="tl-top"><div class="tl-lbl">📅 Filter Waktu</div><div class="tl-yr" id="tl-yr">Semua</div></div>
+        <input type="range" class="tl-slider" id="tl-slider" min="0" max="16" value="0" oninput="onSlider(this.value)" style="--pct:0%">
+        <div class="tl-ticks"><span>2010</span><span>2018</span><span>2026</span></div>
+        <div class="tl-modes">
+          <button class="tl-mb active" id="tl-all" onclick="setTL('all')">Semua</button>
+          <button class="tl-mb" id="tl-year" onclick="setTL('year')">Per Tahun</button>
+          <button class="tl-mb" id="tl-range" onclick="setTL('range')">Rentang</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LAYER -->
+    <div class="sb-panel" id="panel-layer" style="flex-direction:column">
+      <div class="sb-header"><h3>Layer Peta</h3><span class="count-pill" id="sb-count">0 layer</span></div>
+      <button class="reset-btn" onclick="resetAllLayers()">🗑 Hapus Semua Layer</button>
+      <div id="layer-list"><div class="empty"><div class="ico">🗂️</div><p>Memuat layer…</p></div></div>
+    </div>
+
+    <!-- LAPORAN -->
+    <div class="sb-panel" id="panel-laporan" style="flex-direction:column;overflow:hidden">
+      <div class="sb-header"><h3>Laporan Banjir</h3><span class="count-pill" id="sb-lap-count">0</span></div>
+      <div id="laporan-list"><div class="empty"><div class="ico">🚨</div><p>Belum ada laporan masuk.</p></div></div>
+    </div>
+
+    <!-- KONTAK -->
+    <div class="sb-panel" id="panel-kontak" style="flex-direction:column;overflow:hidden">
+      <div class="sb-header"><h3>Kontak Darurat Bencana</h3></div>
+      <div style="flex:1;overflow-y:auto;padding:7px">
+        <div class="sos-box">
+          <span class="sos-num">🆘 117</span>
+          <div class="sos-lbl">Hotline Nasional BNPB – 24 Jam</div>
+        </div>
+        <div class="sos-box" style="background:linear-gradient(135deg,rgba(33,150,243,.1),rgba(0,229,255,.06));border-color:rgba(33,150,243,.3);margin-bottom:8px">
+          <span class="sos-num" style="color:var(--accent2)">🚁 115</span>
+          <div class="sos-lbl">SAR Nasional (Basarnas) – 24 Jam</div>
+        </div>
+        <input class="kontak-search" id="kontak-search" type="text" placeholder="🔍 Cari provinsi…" oninput="filterKontak(this.value)">
+        <div id="kontak-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="basemap-sw">
+      <button class="bm-btn active" onclick="setBasemap('dark',this)">🌙 Dark</button>
+      <button class="bm-btn" onclick="setBasemap('satellite',this)">🛰️ Satelit</button>
+      <button class="bm-btn" onclick="setBasemap('topo',this)">🗻 Topo</button>
+    </div>
+    <div id="legend"><h4>Legenda</h4><div id="legend-items"></div><div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><div class="leg-item"><div style="width:8px;height:8px;border-radius:50%;background:var(--danger);box-shadow:0 0 5px var(--danger);flex-shrink:0"></div><span>Laporan Banjir</span></div></div></div>
+    <div id="sev-legend">
+      <h4>Tingkat Bahaya</h4>
+      <div class="sev-row"><div class="sev-sw" style="background:#ffb547"></div><span>Rendah &lt;50cm</span></div>
+      <div class="sev-row"><div class="sev-sw" style="background:orange"></div><span>Sedang 50–100cm</span></div>
+      <div class="sev-row"><div class="sev-sw" style="background:var(--danger)"></div><span>Tinggi &gt;100cm</span></div>
+      <div class="sev-row"><div class="sev-sw" style="background:#ff0033"></div><span>Kritis/Korban</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- STATUSBAR -->
+<div id="statusbar">
+  <span>Koordinat: <b id="s-coord">–</b></span>
+  <span>Zoom: <b id="s-zoom">–</b></span>
+  <span>CRS: <b>WGS84 / EPSG:4326</b></span>
+  <div class="sb-right">
+    <div class="risk-ind"><div class="risk-dot" id="risk-dot"></div><span id="risk-text">Siaga Normal</span></div>
+    <span>Supabase · PostgreSQL · JSONB</span>
+  </div>
+</div>
+
+<!-- MODAL UPLOAD -->
+<div id="overlay">
+  <div id="modal">
+    <div class="m-head"><h2>🗺️ Upload Layer Baru</h2><button class="m-close" onclick="closeModal()">✕</button></div>
+    <div class="m-body">
+      <div id="dropzone" onclick="document.getElementById('file-input').click()" ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="1.5" style="margin:0 auto 6px;display:block"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <p><strong>Drag &amp; drop</strong> file ke sini atau klik untuk pilih</p>
+        <p style="font-size:9.5px;margin-top:2px;color:var(--text3)">Format: .zip (SHP+DBF+PRJ) · .geojson · .json · maks 50MB</p>
+        <div id="fname"></div>
+        <input type="file" id="file-input" accept=".zip,.geojson,.json" onchange="onFileSelect(event)">
+      </div>
+      <div id="prog-wrap"><div class="prog-bar"><div class="prog-fill" id="prog-fill"></div></div><div id="prog-label">Mengunggah…</div></div>
+      <div class="fg"><label>Nama Layer *</label><input type="text" id="in-nama" placeholder="mis: Rawan Banjir Sulawesi Selatan 2024"></div>
+      <div class="two-col">
+        <div class="fg"><label>Tipe Wilayah</label>
+          <select id="in-tipe">
+            <option value="kecamatan">Kecamatan</option><option value="desa">Desa/Kelurahan</option>
+            <option value="kabupaten">Kabupaten/Kota</option><option value="provinsi">Provinsi</option>
+            <option value="sungai">Sungai/Drainase</option><option value="titik">Titik Pengamatan</option>
+          </select>
+        </div>
+        <div class="fg"><label>Mode Layer</label>
+          <select id="in-mode">
+            <option value="tambah">Tambah ke layer ada</option>
+            <option value="ganti">Ganti semua layer lama</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label>Warna Layer</label>
+        <div class="swatches">
+          <div class="sw sel" data-c="#2196f3" style="background:#2196f3" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#00e5ff" style="background:#00e5ff" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#f44336" style="background:#f44336" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#ff9800" style="background:#ff9800" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#9c27b0" style="background:#9c27b0" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#4caf50" style="background:#4caf50" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#f06292" style="background:#f06292" onclick="pickColor(this)"></div>
+          <div class="sw" data-c="#ffd600" style="background:#ffd600" onclick="pickColor(this)"></div>
+        </div>
+      </div>
+      <div class="fg"><label>Deskripsi</label><textarea id="in-desc" rows="2" placeholder="Sumber data, tahun, keterangan…" style="resize:none"></textarea></div>
+      <button class="btn-main" id="btn-proses" onclick="doUpload()" disabled>Proses &amp; Simpan ke Supabase</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LAPOR -->
+<div id="overlay-lapor">
+  <div id="modal-lapor">
+    <div class="m-head"><h2><span style="color:var(--danger)">🚨</span> Laporan Kejadian Banjir</h2><button class="m-close" onclick="closeLapor()">✕</button></div>
+    <div class="m-body">
+      <div class="fg"><label>Lokasi / Nama Wilayah *</label><input type="text" id="lap-lokasi" placeholder="mis: Kec. Rappocini, Kota Makassar"></div>
+      <div class="two-col">
+        <div class="fg"><label>Tanggal Kejadian *</label><input type="date" id="lap-tanggal"></div>
+        <div class="fg"><label>Tahun</label><select id="lap-tahun"><option value="">— Pilih —</option></select></div>
+      </div>
+      <div class="two-col">
+        <div class="fg"><label>Tingkat Keparahan</label>
+          <select id="lap-sev">
+            <option value="rendah">🟡 Rendah – &lt;50cm</option>
+            <option value="sedang">🟠 Sedang – 50–100cm</option>
+            <option value="tinggi">🔴 Tinggi – &gt;100cm</option>
+            <option value="kritis">⚫ Kritis – Banjir Besar</option>
+          </select>
+        </div>
+        <div class="fg"><label>Status</label>
+          <select id="lap-status">
+            <option value="aktif">🔴 Aktif – Berlangsung</option>
+            <option value="mereda">🟢 Mereda – Selesai</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg"><label>Koordinat (klik peta untuk isi otomatis)</label>
+        <div class="two-col">
+          <input type="number" id="lap-lat" placeholder="Latitude (mis: -5.147)" step="0.00001">
+          <input type="number" id="lap-lng" placeholder="Longitude (mis: 119.43)" step="0.00001">
+        </div>
+        <div class="note">💡 Buka tab Laporan di sidebar lalu klik lokasi di peta</div>
+      </div>
+      <div class="fg"><label>Deskripsi Kejadian</label><textarea id="lap-desc" rows="3" placeholder="Deskripsi kondisi banjir, korban, kerusakan infrastruktur…" style="resize:none"></textarea></div>
+      <div class="fg"><label>Nama Pelapor</label><input type="text" id="lap-pelapor" placeholder="Nama / instansi (opsional)"></div>
+      <button class="btn-danger-full" onclick="submitLaporan()">🚨 Kirim Laporan Banjir</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"><div class="t-dot"></div><span id="toast-msg"></span></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// CONFIG
+// ════════════════════════════════════════════════════════════
+const API = '';  // Ganti dengan URL Railway saat deploy, mis: 'https://xxx.railway.app'
+let selColor = '#2196f3';
+let pendingFile = null;
+let layers = [];
+let totalFitur = 0;
+let laporanData = JSON.parse(localStorage.getItem('banjir_laporan') || '[]');
+let floodMarkers = L.layerGroup();
+let activeYear = null;
+let tlMode = 'all';
+let scope = 'provinsi';
+
+// Data simulasi kejadian banjir historis (sumber: data BNPB)
+const FLOOD_DATA = {2010:1124,2011:983,2012:1456,2013:1890,2014:1234,2015:1102,2016:1340,2017:1267,2018:1578,2019:1423,2020:1980,2021:1756,2022:2134,2023:1823,2024:1654,2025:1432,2026:312};
+const YEARS = Object.keys(FLOOD_DATA).map(Number);
+const TOTAL = Object.values(FLOOD_DATA).reduce((a,b)=>a+b,0);
+const MAX_V = Math.max(...Object.values(FLOOD_DATA));
+
+// ── KONTAK BPBD PER PROVINSI ────────────────────────────────
+const KONTAK_DATA = [
+  {prov:"Aceh",bpbd:"BPBD Provinsi Aceh",telp:"(0651) 44456",email:"bpbd@acehprov.go.id",sar:"Kantor SAR Banda Aceh",telp_sar:"(0651) 22222"},
+  {prov:"Sumatera Utara",bpbd:"BPBD Prov. Sumatera Utara",telp:"(061) 4534769",email:"bpbd@sumutprov.go.id",sar:"Kantor SAR Medan",telp_sar:"(061) 6610999"},
+  {prov:"Sumatera Barat",bpbd:"BPBD Prov. Sumatera Barat",telp:"(0751) 7055666",email:"bpbd@sumbarprov.go.id",sar:"Kantor SAR Padang",telp_sar:"(0751) 446611"},
+  {prov:"Riau",bpbd:"BPBD Prov. Riau",telp:"(0761) 563556",email:"bpbd@riaurov.go.id",sar:"Kantor SAR Pekanbaru",telp_sar:"(0761) 22440"},
+  {prov:"Jambi",bpbd:"BPBD Prov. Jambi",telp:"(0741) 7552010",email:"bpbd@jambiprov.go.id",sar:"Kantor SAR Jambi",telp_sar:"(0741) 40049"},
+  {prov:"Sumatera Selatan",bpbd:"BPBD Prov. Sumsel",telp:"(0711) 361111",email:"bpbd@sumselprov.go.id",sar:"Kantor SAR Palembang",telp_sar:"(0711) 410192"},
+  {prov:"Bengkulu",bpbd:"BPBD Prov. Bengkulu",telp:"(0736) 348044",email:"bpbd@bengkuluprov.go.id",sar:"Kantor SAR Bengkulu",telp_sar:"(0736) 21290"},
+  {prov:"Lampung",bpbd:"BPBD Prov. Lampung",telp:"(0721) 486572",email:"bpbd@lampungprov.go.id",sar:"Kantor SAR Lampung",telp_sar:"(0721) 262615"},
+  {prov:"Bangka Belitung",bpbd:"BPBD Prov. Babel",telp:"(0717) 437111",email:"bpbd@babelprov.go.id",sar:"Pos SAR Pangkalpinang",telp_sar:"(0717) 433455"},
+  {prov:"Kepulauan Riau",bpbd:"BPBD Prov. Kepri",telp:"(0778) 741234",email:"bpbd@kepriprov.go.id",sar:"Kantor SAR Tanjung Pinang",telp_sar:"(0771) 314049"},
+  {prov:"DKI Jakarta",bpbd:"BPBD Prov. DKI Jakarta",telp:"(021) 1500444",email:"bpbd@jakarta.go.id",sar:"Kantor SAR Jakarta",telp_sar:"(021) 5650262"},
+  {prov:"Jawa Barat",bpbd:"BPBD Prov. Jawa Barat",telp:"(022) 7320812",email:"bpbd@jabarprov.go.id",sar:"Kantor SAR Bandung",telp_sar:"(022) 7312121"},
+  {prov:"Jawa Tengah",bpbd:"BPBD Prov. Jawa Tengah",telp:"(024) 7607781",email:"bpbd@jatengprov.go.id",sar:"Kantor SAR Semarang",telp_sar:"(024) 7603839"},
+  {prov:"DI Yogyakarta",bpbd:"BPBD DIY",telp:"(0274) 540803",email:"bpbd@jogjaprov.go.id",sar:"Pos SAR Yogyakarta",telp_sar:"(0274) 484655"},
+  {prov:"Jawa Timur",bpbd:"BPBD Prov. Jawa Timur",telp:"(031) 8292519",email:"bpbd@jatimprov.go.id",sar:"Kantor SAR Surabaya",telp_sar:"(031) 8673111"},
+  {prov:"Banten",bpbd:"BPBD Prov. Banten",telp:"(0254) 250805",email:"bpbd@bantenprov.go.id",sar:"Pos SAR Banten",telp_sar:"(0254) 203131"},
+  {prov:"Bali",bpbd:"BPBD Prov. Bali",telp:"(0361) 225466",email:"bpbd@baliprov.go.id",sar:"Kantor SAR Denpasar",telp_sar:"(0361) 751163"},
+  {prov:"Nusa Tenggara Barat",bpbd:"BPBD Prov. NTB",telp:"(0370) 636761",email:"bpbd@ntbprov.go.id",sar:"Kantor SAR Mataram",telp_sar:"(0370) 646484"},
+  {prov:"Nusa Tenggara Timur",bpbd:"BPBD Prov. NTT",telp:"(0380) 831759",email:"bpbd@nttprov.go.id",sar:"Kantor SAR Kupang",telp_sar:"(0380) 833333"},
+  {prov:"Kalimantan Barat",bpbd:"BPBD Prov. Kalbar",telp:"(0561) 738870",email:"bpbd@kalbarprov.go.id",sar:"Kantor SAR Pontianak",telp_sar:"(0561) 748111"},
+  {prov:"Kalimantan Tengah",bpbd:"BPBD Prov. Kalteng",telp:"(0536) 3226018",email:"bpbd@kaltengprov.go.id",sar:"Kantor SAR Palangkaraya",telp_sar:"(0536) 3221555"},
+  {prov:"Kalimantan Selatan",bpbd:"BPBD Prov. Kalsel",telp:"(0511) 3305555",email:"bpbd@kalselprov.go.id",sar:"Kantor SAR Banjarmasin",telp_sar:"(0511) 3306111"},
+  {prov:"Kalimantan Timur",bpbd:"BPBD Prov. Kaltim",telp:"(0541) 738555",email:"bpbd@kaltimprov.go.id",sar:"Kantor SAR Balikpapan",telp_sar:"(0542) 420302"},
+  {prov:"Kalimantan Utara",bpbd:"BPBD Prov. Kaltara",telp:"(0553) 2028888",email:"bpbd@kaltaraprov.go.id",sar:"Pos SAR Tarakan",telp_sar:"(0551) 21600"},
+  {prov:"Sulawesi Utara",bpbd:"BPBD Prov. Sulut",telp:"(0431) 867888",email:"bpbd@sulutprov.go.id",sar:"Kantor SAR Manado",telp_sar:"(0431) 860177"},
+  {prov:"Sulawesi Tengah",bpbd:"BPBD Prov. Sulteng",telp:"(0451) 421999",email:"bpbd@sultengprov.go.id",sar:"Kantor SAR Palu",telp_sar:"(0451) 422484"},
+  {prov:"Sulawesi Selatan",bpbd:"BPBD Prov. Sulsel",telp:"(0411) 872244",email:"bpbd@sulselprov.go.id",sar:"Kantor SAR Makassar",telp_sar:"(0411) 444388"},
+  {prov:"Sulawesi Tenggara",bpbd:"BPBD Prov. Sultra",telp:"(0401) 3121580",email:"bpbd@sultraprov.go.id",sar:"Pos SAR Kendari",telp_sar:"(0401) 393939"},
+  {prov:"Gorontalo",bpbd:"BPBD Prov. Gorontalo",telp:"(0435) 827500",email:"bpbd@gorontaloprov.go.id",sar:"Pos SAR Gorontalo",telp_sar:"(0435) 827600"},
+  {prov:"Sulawesi Barat",bpbd:"BPBD Prov. Sulbar",telp:"(0426) 2325999",email:"bpbd@sulbarprov.go.id",sar:"Pos SAR Mamuju",telp_sar:"(0426) 2325000"},
+  {prov:"Maluku",bpbd:"BPBD Prov. Maluku",telp:"(0911) 361999",email:"bpbd@malukuprov.go.id",sar:"Kantor SAR Ambon",telp_sar:"(0911) 352121"},
+  {prov:"Maluku Utara",bpbd:"BPBD Prov. Maluku Utara",telp:"(0921) 3121999",email:"bpbd@malutprov.go.id",sar:"Pos SAR Ternate",telp_sar:"(0921) 3121000"},
+  {prov:"Papua Barat",bpbd:"BPBD Prov. Papua Barat",telp:"(0986) 213999",email:"bpbd@papuabarprov.go.id",sar:"Kantor SAR Manokwari",telp_sar:"(0986) 213911"},
+  {prov:"Papua",bpbd:"BPBD Prov. Papua",telp:"(0967) 537999",email:"bpbd@papuaprov.go.id",sar:"Kantor SAR Jayapura",telp_sar:"(0967) 537800"},
+  {prov:"Papua Selatan",bpbd:"BPBD Prov. Papua Selatan",telp:"(0971) 322999",email:"bpbd@papuaselatan.go.id",sar:"Pos SAR Merauke",telp_sar:"(0971) 321234"},
+  {prov:"Papua Pegunungan",bpbd:"BPBD Prov. Papua Pegunungan",telp:"(0969) 31999",email:"bpbd@papuapegunungan.go.id",sar:"Pos SAR Wamena",telp_sar:"(0969) 31234"},
+  {prov:"Papua Tengah",bpbd:"BPBD Prov. Papua Tengah",telp:"(0984) 21999",email:"bpbd@papuatengah.go.id",sar:"Pos SAR Nabire",telp_sar:"(0984) 21234"},
+];
+
+// ════════════════════════════════════════════════════════════
+// MAP INIT
+// ════════════════════════════════════════════════════════════
+const TILES = {
+  dark:'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+  satellite:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  topo:'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png'
+};
+let baseTile;
+const map = L.map('map',{center:[-2.5,118.0],zoom:5,zoomControl:true,attributionControl:false});
+baseTile = L.tileLayer(TILES.dark,{maxZoom:19,subdomains:'abcd'}).addTo(map);
+floodMarkers.addTo(map);
+
+map.on('mousemove',e=>{
+  document.getElementById('s-coord').textContent=`${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+});
+map.on('click',e=>{
+  if(document.getElementById('overlay-lapor').classList.contains('open')){
+    document.getElementById('lap-lat').value=e.latlng.lat.toFixed(6);
+    document.getElementById('lap-lng').value=e.latlng.lng.toFixed(6);
+    toast('📍 Koordinat diisi dari klik peta');
+  }
+});
+map.on('zoomend',()=>{
+  const z=map.getZoom();
+  document.getElementById('s-zoom').textContent=z;
+  const m=document.getElementById('map');
+  if(z>=11)m.classList.remove('labels-hidden'); else m.classList.add('labels-hidden');
+});
+document.getElementById('map').classList.add('labels-hidden');
+document.getElementById('s-zoom').textContent=map.getZoom();
+
+function setBasemap(key,el){
+  map.removeLayer(baseTile);
+  baseTile=L.tileLayer(TILES[key],{maxZoom:19,subdomains:'abcd'}).addTo(map);
+  baseTile.bringToBack();
+  document.querySelectorAll('.bm-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════
+// INITS
+// ════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  const sel=document.getElementById('lap-tahun');
+  for(let y=2026;y>=2010;y--){const o=document.createElement('option');o.value=y;o.textContent=y;sel.appendChild(o);}
+  document.getElementById('lap-tanggal').value=new Date().toISOString().slice(0,10);
+  document.getElementById('lap-tahun').value=new Date().getFullYear();
+  renderKontak(KONTAK_DATA);
+});
+
+// ════════════════════════════════════════════════════════════
+// DB STATUS
+// ════════════════════════════════════════════════════════════
+function setDbStatus(ok){
+  const d=document.getElementById('db-dot'),l=document.getElementById('db-label');
+  d.style.background=ok?'var(--green)':'var(--danger)';
+  d.style.boxShadow=ok?'0 0 5px var(--green)':'0 0 5px var(--danger)';
+  l.textContent=ok?'Supabase Terhubung':'Koneksi Gagal';
+  const aktif=laporanData.filter(l=>l.status==='aktif').length;
+  const rd=document.getElementById('risk-dot'),rt=document.getElementById('risk-text');
+  document.getElementById('cnt-aktif').textContent=aktif;
+  if(aktif>=5){rd.style.background='var(--danger)';rt.textContent='Siaga Tinggi';}
+  else if(aktif>=2){rd.style.background='var(--warn)';rt.textContent='Siaga Waspada';}
+  else{rd.style.background='var(--green)';rt.textContent='Siaga Normal';}
+}
+
+// ════════════════════════════════════════════════════════════
+// TABS
+// ════════════════════════════════════════════════════════════
+function switchTab(name,btn){
+  document.querySelectorAll('.sb-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.sb-panel').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════
+// RINGKASAN
+// ════════════════════════════════════════════════════════════
+function setScope(s,btn){
+  scope=s;
+  document.querySelectorAll('.scope-btn').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  updateRingkasan();
+}
+function updateRingkasan(){
+  const tot=tlMode==='all'?TOTAL:(FLOOD_DATA[activeYear]||0);
+  document.getElementById('rs-total').textContent=tot.toLocaleString('id-ID');
+  document.getElementById('rs-unit').textContent=Math.floor(tot/({provinsi:45,kabupaten:514,kecamatan:7094}[scope]||45)*10).toLocaleString('id-ID');
+  document.getElementById('rs-peta').textContent=totalFitur.toLocaleString('id-ID');
+  document.getElementById('rs-scope-lbl').textContent={provinsi:'Provinsi terdampak',kabupaten:'Kab/Kota terdampak',kecamatan:'Kecamatan terdampak'}[scope];
+  document.getElementById('rs-waktu').textContent=tlMode==='all'?'Semua':(activeYear?String(activeYear):'Semua');
+  renderChart();
+}
+
+// ════════════════════════════════════════════════════════════
+// TIMELINE
+// ════════════════════════════════════════════════════════════
+function onSlider(v){
+  const s=document.getElementById('tl-slider');
+  s.style.setProperty('--pct',(v/s.max*100)+'%');
+  if(tlMode==='all')return;
+  activeYear=v==0?null:2009+parseInt(v);
+  document.getElementById('tl-yr').textContent=activeYear?activeYear:'Semua';
+  updateRingkasan();
+}
+function setTL(mode){
+  tlMode=mode;
+  document.querySelectorAll('.tl-mb').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tl-'+mode).classList.add('active');
+  if(mode==='all'){activeYear=null;const s=document.getElementById('tl-slider');s.value=0;s.style.setProperty('--pct','0%');document.getElementById('tl-yr').textContent='Semua';}
+  updateRingkasan();
+}
+function renderChart(){
+  const bars=document.getElementById('mc-bars');
+  document.getElementById('cv-lbl').textContent=activeYear?`${activeYear}: ${FLOOD_DATA[activeYear]?.toLocaleString('id-ID')||0} kejadian`:'2010–2026';
+  bars.innerHTML=YEARS.map(y=>{
+    const h=Math.max(2,Math.round((FLOOD_DATA[y]/MAX_V)*48));
+    const isSel=activeYear===y;
+    const isSpike=[2013,2020,2022,2023].includes(y);
+    return `<div class="bw" onclick="selectYear(${y})" title="${y}: ${FLOOD_DATA[y].toLocaleString('id-ID')} kejadian"><div class="bar ${isSel?'sel':isSpike?'spike':''}" style="height:${h}px"></div><div class="bar-yr">${String(y).slice(2)}</div></div>`;
+  }).join('');
+}
+function selectYear(y){
+  if(tlMode==='all')setTL('year');
+  activeYear=y;
+  const idx=y-2009;
+  const s=document.getElementById('tl-slider');
+  s.value=idx;s.style.setProperty('--pct',(idx/s.max*100)+'%');
+  document.getElementById('tl-yr').textContent=y;
+  updateRingkasan();
+}
+
+// ════════════════════════════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════════════════════════════
+function onSearch(v){
+  const box=document.getElementById('search-results');
+  if(!v||v.length<2){box.classList.remove('open');return;}
+  const q=v.toLowerCase();
+  const res=[];
+  layers.forEach(l=>{
+    if(res.length>=8)return;
+    if(l.nama.toLowerCase().includes(q))res.push({type:'layer',nama:l.nama,sub:`Layer · ${l.tipe}`,color:l.warna,id:l.id});
+    if(l.geojson&&l.geojson.features){
+      const KEYS=['NAMOBJ','KECAMATAN','DESA','NAMA','NAME','WADMKC','WADMKD','NAMKEL','NAMKEC','NAMA_KEC','NAMA_DESA','LABEL'];
+      l.geojson.features.forEach(f=>{
+        if(res.length>=8)return;
+        const props=f.properties||{};
+        for(const k of KEYS){if(props[k]&&String(props[k]).toLowerCase().includes(q)){res.push({type:'feature',nama:String(props[k]),sub:`${l.nama}`,color:l.warna,layerId:l.id,feature:f});break;}}
+      });
+    }
+  });
+  box.innerHTML=res.length===0?`<div class="sr-item" style="color:var(--text2)">Tidak ada hasil untuk "${v}"</div>`:
+    res.map((r,i)=>`<div class="sr-item" onclick="selResult(${i})"><div class="sr-dot" style="background:${r.color}"></div><div><div class="sr-name">${r.nama}</div><div class="sr-sub">${r.sub}</div></div></div>`).join('');
+  box._results=res;
+  box.classList.add('open');
+}
+function selResult(i){
+  const box=document.getElementById('search-results');
+  const r=box._results?.[i];if(!r)return;
+  box.classList.remove('open');
+  document.getElementById('tb-search').value=r.nama;
+  if(r.type==='layer')zoomTo(r.id);
+  else if(r.feature){
+    const l=layers.find(x=>x.id===r.layerId);
+    if(!l)return;
+    l.ll.eachLayer(lyr=>{
+      if(lyr.feature===r.feature){
+        try{map.fitBounds(lyr.getBounds?lyr.getBounds():map.getBounds(),{padding:[60,60]});}catch(e){}
+        lyr.openPopup();
+      }
+    });
+  }
+}
+function closeSearch(){document.getElementById('search-results').classList.remove('open');}
+
+// ════════════════════════════════════════════════════════════
+// LOAD LAYERS
+// ════════════════════════════════════════════════════════════
+async function loadLayers(){
+  try{
+    const res=await fetch(API+'/api/layers');
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const data=await res.json();
+    // Hapus semua layer peta lama dulu
+    layers.forEach(l=>{try{map.removeLayer(l.ll);}catch(e){}});
+    layers=[];totalFitur=0;
+    setDbStatus(true);
+    data.forEach(row=>addLayerFromSupabase(row));
+    renderSidebar();renderLegend();updateCounts();updateRingkasan();
+    if(layers.length>0){try{map.fitBounds(L.featureGroup(layers.map(l=>l.ll)).getBounds(),{padding:[30,30]});}catch(e){}}
+    toast(`✅ ${layers.length} layer dimuat`);
+  }catch(err){
+    setDbStatus(false);
+    toast('Gagal memuat: '+err.message,true);
+    document.getElementById('layer-list').innerHTML=`<div class="empty"><div class="ico">⚠️</div><p style="color:var(--danger)">Gagal terhubung Supabase.<br><span style="color:var(--text2)">${err.message}</span></p></div>`;
+  }
+}
+
+function addLayerFromSupabase(row){
+  const gj=row.geojson_data,warna=row.warna||'#2196f3',nama=row.nama_layer;
+  const fields=row.atribut_fields||[];
+  const fc=(row.jumlah_fitur)||(gj.features?gj.features.length:0);
+  const ll=buildLeafletLayer(gj,warna,nama,fields);
+  ll.addTo(map);
+  layers.push({id:row.id,nama,tipe:row.tipe_wilayah||'kecamatan',warna,geojson:gj,fields,ll,visible:true,featureCount:fc});
+  totalFitur+=fc;
+}
+
+// ════════════════════════════════════════════════════════════
+// BUILD LAYER
+// ════════════════════════════════════════════════════════════
+function buildLeafletLayer(geojson,warna,nama,fields){
+  const NK=['NAMOBJ','KECAMATAN','DESA','NAMA','NAME','WADMKC','WADMKD','NAMKEL','NAMKEC','NAMA_KEC','NAMA_DESA','LABEL'];
+  function getName(props){for(const k of NK)if(props[k])return String(props[k]);const fb=Object.keys(props).find(k=>k.toLowerCase().includes('nam'));return fb?String(props[fb]):null;}
+  function getCentroid(feat){
+    try{const c=feat.geometry.coordinates,t=feat.geometry.type;let pts=[];
+      if(t==='Polygon')pts=c[0];else if(t==='MultiPolygon')pts=c[0][0];else return null;
+      return[pts.reduce((s,p)=>s+p[1],0)/pts.length,pts.reduce((s,p)=>s+p[0],0)/pts.length];
+    }catch(e){return null;}
+  }
+  function getFlood(props){
+    const n=getName(props)||'';if(!n)return{total:0,byYear:{}};
+    const nm=n.toLowerCase();const byYear={};let total=0;
+    laporanData.forEach(l=>{if(l.lokasi&&l.lokasi.toLowerCase().includes(nm)){total++;const y=l.tahun||new Date(l.tanggal||Date.now()).getFullYear();byYear[y]=(byYear[y]||0)+1;}});
+    return{total,byYear};
+  }
+  const lblGrp=L.layerGroup();
+  const gj=L.geoJSON(geojson,{
+    style:feat=>{if(!feat?.geometry)return{};const t=feat.geometry.type;
+      if(t.includes('Line'))return{color:warna,weight:2.5,opacity:.9};
+      if(t==='Point'||t==='MultiPoint')return{};
+      return{color:warna,weight:1.5,opacity:.85,fillColor:warna,fillOpacity:.15};
+    },
+    pointToLayer:(feat,ll)=>L.circleMarker(ll,{radius:7,fillColor:warna,color:'#fff',weight:1.5,opacity:1,fillOpacity:.9}),
+    onEachFeature:(feat,lyr)=>{
+      const props=feat.properties||{};
+      const n=getName(props)||nama;
+      const fl=getFlood(props);
+      const badge=fl.total===0?'zero':'';
+      const badgeTxt=fl.total===0?'0 banjir':`${fl.total}× banjir`;
+      const rows=Object.entries(props).slice(0,10).map(([k,v])=>`<div class="pu-row"><span class="pu-key">${k}</span><span class="pu-val">${v??'–'}</span></div>`).join('');
+      lyr.bindPopup(`<div class="pu"><div class="pu-head"><div class="pu-dot" style="background:${warna};box-shadow:0 0 6px ${warna}"></div><div class="pu-title">${n}</div><div class="pu-badge ${badge}">${badgeTxt}</div></div><div class="pu-body">${rows||'<span style="color:var(--text2);font-size:10px">Tidak ada atribut</span>'}</div></div>`,{maxWidth:300});
+      lyr.on('mouseover',function(){this.setStyle&&this.setStyle({fillOpacity:.38,weight:2.5});});
+      lyr.on('mouseout',function(){this.setStyle&&this.setStyle({fillOpacity:.15,weight:1.5});});
+      const t=feat.geometry?.type;
+      if(t&&(t==='Polygon'||t==='MultiPolygon')){
+        const nl=getName(props);
+        if(nl){const ctr=getCentroid(feat);if(ctr)lblGrp.addLayer(L.marker(ctr,{icon:L.divIcon({className:'map-label',html:`<div style="color:${warna}">${nl}</div>`,iconSize:[100,14],iconAnchor:[50,7]}),interactive:false,zIndexOffset:-100}));}
+      }
+    }
+  });
+  const group=L.layerGroup([gj,lblGrp]);
+  group.getBounds=()=>gj.getBounds();
+  return group;
+}
+
+// ════════════════════════════════════════════════════════════
+// LAPORAN
+// ════════════════════════════════════════════════════════════
+function openLapor(){document.getElementById('overlay-lapor').classList.add('open');}
+function closeLapor(){document.getElementById('overlay-lapor').classList.remove('open');}
+function submitLaporan(){
+  const lokasi=document.getElementById('lap-lokasi').value.trim();
+  const tanggal=document.getElementById('lap-tanggal').value;
+  if(!lokasi){toast('Isi nama lokasi!',true);return;}
+  const lap={
+    id:'LAP-'+Date.now(),lokasi,tanggal,
+    tahun:parseInt(document.getElementById('lap-tahun').value)||new Date().getFullYear(),
+    severity:document.getElementById('lap-sev').value,
+    status:document.getElementById('lap-status').value,
+    lat:parseFloat(document.getElementById('lap-lat').value)||null,
+    lng:parseFloat(document.getElementById('lap-lng').value)||null,
+    desc:document.getElementById('lap-desc').value.trim(),
+    pelapor:document.getElementById('lap-pelapor').value.trim(),
+    waktu:new Date().toLocaleString('id-ID')
+  };
+  laporanData.unshift(lap);
+  localStorage.setItem('banjir_laporan',JSON.stringify(laporanData));
+  if(lap.lat&&lap.lng)addLaporanMarker(lap);
+  renderLaporanList();updateCounts();setDbStatus(true);closeLapor();
+  ['lap-lokasi','lap-desc','lap-lat','lap-lng','lap-pelapor'].forEach(id=>document.getElementById(id).value='');
+  toast(`🚨 Laporan "${lokasi}" berhasil dikirim!`);
+  rebuildLayerPopups();
+}
+function addLaporanMarker(lap){
+  if(!lap.lat||!lap.lng)return;
+  const sc={rendah:'#ffb547',sedang:'orange',tinggi:'#f44336',kritis:'#ff0033'}[lap.severity]||'#f44336';
+  L.circleMarker([lap.lat,lap.lng],{radius:9,fillColor:sc,color:'#fff',weight:2,opacity:1,fillOpacity:.9})
+    .bindPopup(`<div class="pu" style="min-width:200px"><div class="pu-head"><div class="pu-dot" style="background:${sc}"></div><div class="pu-title">${lap.lokasi}</div><div class="pu-badge">${lap.severity}</div></div><div class="pu-body"><div class="pu-row"><span class="pu-key">Tanggal</span><span class="pu-val">${lap.tanggal}</span></div><div class="pu-row"><span class="pu-key">Pelapor</span><span class="pu-val">${lap.pelapor||'–'}</span></div><div class="pu-row"><span class="pu-key">Status</span><span class="pu-val">${lap.status}</span></div>${lap.desc?`<div style="font-size:10px;color:var(--text2);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">${lap.desc}</div>`:''}</div></div>`,{maxWidth:270})
+    .addTo(floodMarkers);
+}
+function renderLaporanList(){
+  const el=document.getElementById('laporan-list');
+  document.getElementById('sb-lap-count').textContent=laporanData.length;
+  if(!laporanData.length){el.innerHTML=`<div class="empty"><div class="ico">🚨</div><p>Belum ada laporan.<br>Klik <strong>Lapor Banjir</strong> untuk menambahkan.</p></div>`;return;}
+  el.innerHTML=laporanData.slice(0,30).map(l=>{
+    const sev=l.severity||'rendah';
+    const filled={rendah:1,sedang:2,tinggi:3,kritis:4}[sev]||1;
+    const bars=[1,2,3,4].map(i=>`<div class="sev-b ${i<=filled?'f':''} ${i<=filled?sev:''}"></div>`).join('');
+    return`<div class="laporan-item" onclick="focusLap('${l.id}')"><div class="li-head"><span class="li-kode">${l.id}</span><span class="li-status ${l.status}">${l.status==='aktif'?'🔴 Aktif':'🟢 Mereda'}</span></div><div class="li-lokasi">📍 ${l.lokasi}</div><div class="li-waktu">📅 ${l.tanggal} · ${l.tahun}${l.pelapor?' · '+l.pelapor:''}</div><div class="sev-bar">${bars}</div>${l.desc?`<div class="li-desc">${l.desc.slice(0,80)}${l.desc.length>80?'…':''}</div>`:''}</div>`;
+  }).join('');
+}
+function focusLap(id){
+  const l=laporanData.find(x=>x.id===id);
+  if(l?.lat&&l?.lng){map.setView([l.lat,l.lng],14);toast(`📍 ${l.lokasi}`);}
+}
+function rebuildLayerPopups(){
+  layers.forEach(l=>{
+    map.removeLayer(l.ll);
+    l.ll=buildLeafletLayer(l.geojson,l.warna,l.nama,l.fields);
+    if(l.visible)l.ll.addTo(map);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// KONTAK BPBD
+// ════════════════════════════════════════════════════════════
+function renderKontak(data){
+  const el=document.getElementById('kontak-list');
+  if(!data.length){el.innerHTML=`<div class="empty"><div class="ico">🔍</div><p>Tidak ditemukan.</p></div>`;return;}
+  el.innerHTML=data.map(k=>`
+    <div class="kontak-card" id="kc-${k.prov.replace(/\s/g,'-')}">
+      <div class="kontak-head" onclick="toggleKontak(this)">
+        <span class="kontak-provinsi">📍 ${k.prov}</span>
+        <span class="kontak-arrow">▶</span>
+      </div>
+      <div class="kontak-body">
+        <span class="kontak-badge bpbd">🏛 BPBD</span>
+        <div class="kontak-row"><span class="kontak-lbl">Instansi</span><span class="kontak-val">${k.bpbd}</span></div>
+        <div class="kontak-row"><span class="kontak-lbl">Telepon</span><a class="kontak-telp" href="tel:${k.telp}">${k.telp}</a></div>
+        <div class="kontak-row"><span class="kontak-lbl">Email</span><span class="kontak-val" style="font-size:8.5px">${k.email}</span></div>
+        <span class="kontak-badge sar" style="margin-top:6px">🚁 SAR</span>
+        <div class="kontak-row"><span class="kontak-lbl">Unit SAR</span><span class="kontak-val">${k.sar}</span></div>
+        <div class="kontak-row"><span class="kontak-lbl">Telepon</span><a class="kontak-telp" href="tel:${k.telp_sar}">${k.telp_sar}</a></div>
+      </div>
+    </div>`).join('');
+}
+function toggleKontak(head){
+  const card=head.parentElement;
+  card.classList.toggle('open');
+}
+function filterKontak(v){
+  const q=v.toLowerCase();
+  const filtered=q?KONTAK_DATA.filter(k=>k.prov.toLowerCase().includes(q)||k.bpbd.toLowerCase().includes(q)):KONTAK_DATA;
+  renderKontak(filtered);
+}
+
+// ════════════════════════════════════════════════════════════
+// SIDEBAR / LAYERS
+// ════════════════════════════════════════════════════════════
+function renderSidebar(){
+  const el=document.getElementById('layer-list');
+  document.getElementById('sb-count').textContent=`${layers.length} layer`;
+  if(!layers.length){el.innerHTML=`<div class="empty"><div class="ico">🗂️</div><p>Belum ada layer.<br>Klik <strong>Upload Layer</strong> untuk mulai.</p></div>`;return;}
+  el.innerHTML=[...layers].reverse().map(l=>`
+    <div class="lcard ${l.visible?'on':''}" id="lc-${l.id}">
+      <div class="lcard-head" onclick="toggleOpen('${l.id}')">
+        <div class="lcolor" style="background:${l.warna};color:${l.warna}"></div>
+        <div class="lname" title="${l.nama}">${l.nama}</div>
+        <span class="lbadge">${l.tipe}</span>
+        <button class="ltoggle ${l.visible?'on':''}" onclick="toggleVis(event,'${l.id}')"></button>
+      </div>
+      <div class="lcard-body">
+        <div class="info-row"><span>Fitur</span><b>${l.featureCount}</b></div>
+        <div class="info-row"><span>Atribut</span><b>${l.fields.length} kolom</b></div>
+        <div class="attr-chips">${l.fields.slice(0,8).map(f=>`<span class="chip">${f}</span>`).join('')||'<span class="chip" style="color:var(--text3)">–</span>'}</div>
+        <div class="lcard-actions">
+          <button class="zm" onclick="zoomTo('${l.id}')">🔍 Zoom</button>
+          <button onclick="exportGJ('${l.id}')">⬇ Export</button>
+          <button class="del" onclick="deleteL('${l.id}')">🗑 Hapus</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+function renderLegend(){
+  document.getElementById('legend-items').innerHTML=layers.map(l=>{
+    const t=l.geojson.features?.[0]?.geometry?.type||'';
+    let sym;
+    if(t.includes('Line'))sym=`<div class="leg-sym" style="background:${l.warna}"></div>`;
+    else if(t==='Point'||t==='MultiPoint')sym=`<div class="leg-sym dot" style="background:${l.warna};box-shadow:0 0 4px ${l.warna}"></div>`;
+    else sym=`<div class="leg-sym poly" style="background:${l.warna}"></div>`;
+    return`<div class="leg-item">${sym}<span>${l.nama}</span></div>`;
+  }).join('');
+}
+function updateCounts(){
+  document.getElementById('cnt-layer').textContent=layers.filter(l=>l.visible).length;
+  document.getElementById('cnt-fitur').textContent=totalFitur.toLocaleString('id-ID');
+  document.getElementById('cnt-laporan').textContent=laporanData.length;
+  document.getElementById('cnt-aktif').textContent=laporanData.filter(l=>l.status==='aktif').length;
+}
+function toggleOpen(id){document.getElementById('lc-'+id)?.classList.toggle('open');}
+function toggleVis(e,id){
+  e.stopPropagation();const l=layers.find(x=>x.id===id);if(!l)return;
+  l.visible=!l.visible;
+  if(l.visible)l.ll.addTo(map);else map.removeLayer(l.ll);
+  renderSidebar();renderLegend();updateCounts();
+}
+function zoomTo(id){const l=layers.find(x=>x.id===id);if(!l)return;try{map.fitBounds(l.ll.getBounds(),{padding:[40,40]});}catch(e){}}
+function exportGJ(id){
+  const l=layers.find(x=>x.id===id);if(!l)return;
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(l.geojson,null,2)],{type:'application/json'}));
+  a.download=l.nama.replace(/\s+/g,'_')+'.geojson';a.click();toast(`GeoJSON "${l.nama}" diunduh`);
+}
+async function deleteL(id){
+  const l=layers.find(x=>x.id===id);if(!l||!confirm(`Hapus layer "${l.nama}"?`))return;
+  try{
+    const res=await fetch(API+'/api/layers/'+id,{method:'DELETE'});
+    if(!res.ok)throw new Error();
+    map.removeLayer(l.ll);totalFitur-=l.featureCount;layers=layers.filter(x=>x.id!==id);
+    renderSidebar();renderLegend();updateCounts();updateRingkasan();toast(`Layer "${l.nama}" dihapus`);
+  }catch(e){toast('Gagal menghapus',true);}
+}
+async function resetAllLayers(){
+  if(!confirm('Hapus SEMUA layer dari database? Tindakan ini tidak dapat dibatalkan.'))return;
+  try{
+    const res=await fetch(API+'/api/reset_layers',{method:'DELETE'});
+    if(!res.ok)throw new Error();
+    layers.forEach(l=>{try{map.removeLayer(l.ll);}catch(e){}});
+    layers=[];totalFitur=0;
+    renderSidebar();renderLegend();updateCounts();updateRingkasan();
+    toast('🗑 Semua layer dihapus dari database');
+  }catch(e){toast('Gagal reset: '+e.message,true);}
+}
+
+// ════════════════════════════════════════════════════════════
+// UPLOAD
+// ════════════════════════════════════════════════════════════
+function openModal(){document.getElementById('overlay').classList.add('open');}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  pendingFile=null;document.getElementById('fname').textContent='';
+  document.getElementById('btn-proses').disabled=true;
+  document.getElementById('prog-wrap').style.display='none';
+  document.getElementById('prog-fill').style.width='0';
+  document.getElementById('in-nama').value='';
+  document.getElementById('in-desc').value='';
+}
+function pickColor(el){document.querySelectorAll('.sw').forEach(s=>s.classList.remove('sel'));el.classList.add('sel');selColor=el.dataset.c;}
+function dzOver(e){e.preventDefault();document.getElementById('dropzone').classList.add('over');}
+function dzLeave(e){document.getElementById('dropzone').classList.remove('over');}
+function dzDrop(e){e.preventDefault();dzLeave(e);const f=e.dataTransfer.files[0];if(f)setFile(f);}
+function onFileSelect(e){if(e.target.files[0])setFile(e.target.files[0]);}
+function setFile(f){
+  pendingFile=f;
+  document.getElementById('fname').textContent='📎 '+f.name+' ('+(f.size/1024).toFixed(1)+' KB)';
+  document.getElementById('btn-proses').disabled=false;
+  if(!document.getElementById('in-nama').value)
+    document.getElementById('in-nama').value=f.name.replace(/\.(zip|geojson|json)$/i,'').replace(/[_-]/g,' ');
+}
+async function doUpload(){
+  if(!pendingFile){toast('Pilih file dulu!',true);return;}
+  const nama=document.getElementById('in-nama').value.trim();
+  if(!nama){toast('Isi nama layer!',true);return;}
+  const mode=document.getElementById('in-mode').value;
+  // Jika mode "ganti", reset dulu semua layer lama
+  if(mode==='ganti'){
+    try{
+      await fetch(API+'/api/reset_layers',{method:'DELETE'});
+      layers.forEach(l=>{try{map.removeLayer(l.ll);}catch(e){}});
+      layers=[];totalFitur=0;
+    }catch(e){}
+  }
+  const btn=document.getElementById('btn-proses');
+  btn.textContent='⏳ Mengupload…';btn.disabled=true;
+  document.getElementById('prog-wrap').style.display='block';
+  let prog=0;
+  const iv=setInterval(()=>{
+    prog=Math.min(prog+Math.random()*15,85);
+    document.getElementById('prog-fill').style.width=prog+'%';
+    document.getElementById('prog-label').textContent=prog<40?'Membaca file…':prog<70?'Mengkonversi GeoJSON…':'Menyimpan ke Supabase…';
+  },200);
+  try{
+    const fd=new FormData();
+    fd.append('file',pendingFile);fd.append('nama_layer',nama);
+    fd.append('tipe_wilayah',document.getElementById('in-tipe').value);
+    fd.append('warna',selColor);fd.append('deskripsi',document.getElementById('in-desc').value);
+    const res=await fetch(API+'/api/upload_shp',{method:'POST',body:fd});
+    const data=await res.json();
+    clearInterval(iv);document.getElementById('prog-fill').style.width='100%';
+    if(!data.sukses)throw new Error(data.pesan);
+    closeModal();await loadLayers();toast(`✅ ${data.pesan}`);
+  }catch(err){
+    clearInterval(iv);toast('❌ '+err.message,true);
+    btn.textContent='Proses & Simpan ke Supabase';btn.disabled=false;
+    document.getElementById('prog-wrap').style.display='none';
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+// TOAST
+// ════════════════════════════════════════════════════════════
+function toast(msg,err=false){
+  const t=document.getElementById('toast');
+  document.getElementById('toast-msg').textContent=msg;
+  t.className=err?'err show':'show';
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3500);
+}
+
+// ════════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════════
+window.addEventListener('load',async()=>{
+  laporanData.forEach(l=>{if(l.lat&&l.lng)addLaporanMarker(l);});
+  renderLaporanList();updateRingkasan();
+  await loadLayers();
+  setTimeout(()=>document.getElementById('loading').classList.add('hide'),700);
+});
+</script>
+</body>
+</html>
